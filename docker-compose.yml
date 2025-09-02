@@ -1,158 +1,49 @@
-version: '3.8'
-
 services:
-  # Kong API Gateway
-  kong-database:
+  postgres:
     image: postgres:13
     environment:
       POSTGRES_USER: kong
-      POSTGRES_PASSWORD: kongpass
       POSTGRES_DB: kong
-    volumes:
-      - kong_data:/var/lib/postgresql/data
+      POSTGRES_PASSWORD: kong
+    ports:
+      - "5432:5432"
     networks:
       - fesoni-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kong"]
-      interval: 30s
-      timeout: 30s
-      retries: 3
 
   kong-migrations:
-    image: kong:3.4
+    image: kong:latest
     command: kong migrations bootstrap
     depends_on:
-      - kong-database
+      - postgres
     environment:
       KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-database
-      KONG_PG_USER: kong
-      KONG_PG_PASSWORD: kongpass
-      KONG_PG_DATABASE: kong
+      KONG_PG_HOST: postgres
+      KONG_PG_PASSWORD: kong
     networks:
       - fesoni-network
 
   kong:
-    image: kong:3.4
+    image: kong:3.8
     depends_on:
-      - kong-database
       - kong-migrations
     environment:
       KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-database
-      KONG_PG_USER: kong
-      KONG_PG_PASSWORD: kongpass
-      KONG_PG_DATABASE: kong
-      KONG_PROXY_ACCESS_LOG: /dev/stdout
-      KONG_ADMIN_ACCESS_LOG: /dev/stdout
-      KONG_PROXY_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_PG_HOST: postgres
+      KONG_PG_PASSWORD: kong
       KONG_ADMIN_LISTEN: 0.0.0.0:8001
-      KONG_ADMIN_GUI_URL: http://localhost:8002
+      KONG_ADMIN_API_KEY: Crisoal237#
+      # LavinMQ cloud credentials
+      LAVINMQ_HOST: gorilla.lmq.cloudamqp.com
+      LAVINMQ_USER: zliccovn
+      LAVINMQ_PASSWORD: GtV7xoNFHpFdVWKp3286BsbwOvSvGQtz
     ports:
-      - "8000:8000"   # Kong Proxy
-      - "8001:8001"   # Kong Admin API
-      - "8002:8002"   # Kong Manager
+      - "8000:8000"  # Proxy
+      - "8001:8001"  # Admin API
     networks:
       - fesoni-network
-    healthcheck:
-      test: ["CMD", "kong", "health"]
-      interval: 10s
-      timeout: 10s
-      retries: 10
-
-  # LavinMQ Message Queue
-  lavinmq:
-    image: cloudamqp/lavinmq:latest
-    environment:
-      LAVINMQ_DEFAULT_USER: fesoni
-      LAVINMQ_DEFAULT_PASS: fesonipass
-    ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Management UI
-    volumes:
-      - lavinmq_data:/var/lib/lavinmq
-    networks:
-      - fesoni-network
-    healthcheck:
-      test: ["CMD", "lavinmq-cli", "status"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  # Redis for caching
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - fesoni-network
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Mock API Services (for development)
-  mock-openai:
-    image: nginx:alpine
-    ports:
-      - "3001:80"
-    volumes:
-      - ./docker/mock-apis/openai:/usr/share/nginx/html
-    networks:
-      - fesoni-network
-
-  mock-amazon:
-    image: nginx:alpine
-    ports:
-      - "3002:80"
-    volumes:
-      - ./docker/mock-apis/amazon:/usr/share/nginx/html
-    networks:
-      - fesoni-network
-
-  mock-foxit:
-    image: nginx:alpine
-    ports:
-      - "3003:80"
-    volumes:
-      - ./docker/mock-apis/foxit:/usr/share/nginx/html
-    networks:
-      - fesoni-network
-
-  # Fesoni Web App (Development)
-  fesoni-app:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    ports:
-      - "5173:5173"
-    volumes:
-      - .:/app
-      - /app/node_modules
-    environment:
-      - VITE_KONG_GATEWAY_URL=http://localhost:8000
-      - VITE_KONG_API_KEY=your-kong-api-key
-      - VITE_LAVINMQ_URL=http://localhost:15672
-      - VITE_OPENAI_API_KEY=your-openai-key
-      - VITE_RAPIDAPI_KEY=your-rapidapi-key
-      - VITE_FOXIT_API_KEY=your-foxit-key
-    networks:
-      - fesoni-network
-    depends_on:
-      - kong
-      - lavinmq
-      - redis
-
-volumes:
-  kong_data:
-  lavinmq_data:
-  redis_data:
 
 networks:
   fesoni-network:
     driver: bridge
+
+
