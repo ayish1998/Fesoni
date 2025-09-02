@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_DB: kong
+      POSTGRES_PASSWORD: kong
+    ports:
+      - "5432:5432"
+    networks:
+      - fesoni-network
+
+  kong-migrations:
+    image: kong:latest
+    command: kong migrations bootstrap
+    depends_on:
+      - postgres
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: postgres
+      KONG_PG_PASSWORD: kong
+    networks:
+      - fesoni-network
+
+  kong:
+    image: kong:3.8
+    depends_on:
+      - kong-migrations
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: postgres
+      KONG_PG_PASSWORD: kong
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+      KONG_ADMIN_API_KEY: Crisoal237#
+      # LavinMQ cloud credentials
+      LAVINMQ_HOST: gorilla.lmq.cloudamqp.com
+      LAVINMQ_USER: zliccovn
+      LAVINMQ_PASSWORD: GtV7xoNFHpFdVWKp3286BsbwOvSvGQtz
+    ports:
+      - "8000:8000"  # Proxy
+      - "8001:8001"  # Admin API
+    networks:
+      - fesoni-network
+
+networks:
+  fesoni-network:
+    driver: bridge
+
+
