@@ -1,0 +1,50 @@
+{
+  "products": [
+    {
+      "id": "B08N5WRWNW",
+      "title": "Modern Minimalist Table Lamp - Sleek Design",
+      "price": "$49.99",
+      "image": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop",
+      "rating": 4.5,
+      "url": "https://amazon.com/dp/B08N5WRWNW",
+      "description": "Clean lines and warm lighting perfect for modern spaces",
+      "category": "Home & Kitchen",
+      "aestheticMatch": 0.92
+    },
+    {
+      "id": "B07XJ8C8F5",
+      "title": "Scandinavian Style Throw Pillow Set",
+      "price": "$29.99",
+      "image": "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=300&h=300&fit=crop",
+      "rating": 4.7,
+      "url": "https://amazon.com/dp/B07XJ8C8F5",
+      "description": "Neutral tones with geometric patterns",
+      "category": "Home & Kitchen",
+      "aestheticMatch": 0.88
+    },
+    {
+      "id": "B09KMXNQ7L",
+      "title": "Minimalist Wall Art Canvas Set",
+      "price": "$79.99",
+      "image": "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=300&h=300&fit=crop",
+      "rating": 4.3,
+      "url": "https://amazon.com/dp/B09KMXNQ7L",
+      "description": "Abstract geometric prints in muted colors",
+      "category": "Home & Kitchen",
+      "aestheticMatch": 0.85
+    },
+    {
+      "id": "B08HLQM9KP",
+      "title": "Ceramic Vase - Modern Design",
+      "price": "$34.99",
+      "image": "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=300&h=300&fit=crop",
+      "rating": 4.6,
+      "url": "https://amazon.com/dp/B08HLQM9KP",
+      "description": "Simple ceramic vase with clean silhouette",
+      "category": "Home & Kitchen",
+      "aestheticMatch": 0.90
+    }
+  ],
+  "total": 4,
+  "page": 1
+}
