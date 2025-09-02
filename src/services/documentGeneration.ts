@@ -1,7 +1,7 @@
 // src/services/documentGeneration.ts
-import { Product, AestheticAnalysis } from '../types';
-import { apiGateway } from './apiGateway';
-import { messageQueueService } from './messageQueue';
+import { Product, AestheticAnalysis } from "../types";
+import { apiGateway } from "./apiGateway";
+import { messageQueueService } from "./messageQueue";
 
 export class DocumentGenerationService {
   private foxitApiKey: string;
@@ -9,11 +9,12 @@ export class DocumentGenerationService {
 
   constructor() {
     this.foxitApiKey = import.meta.env.VITE_FOXIT_API_KEY;
-    this.baseUrl = import.meta.env.VITE_FOXIT_BASE_URL || 'https://api.foxit.com/v1';
+    this.baseUrl =
+      import.meta.env.VITE_FOXIT_BASE_URL || "https://api.foxit.com/v1";
   }
 
   async generateStyleGuide(
-    aesthetic: AestheticAnalysis, 
+    aesthetic: AestheticAnalysis,
     products: Product[],
     userId?: string
   ): Promise<string> {
@@ -21,58 +22,66 @@ export class DocumentGenerationService {
       // Queue the document generation task
       const taskId = await messageQueueService.addTask(
         `document-generation:${aesthetic.style}-style-guide`,
-        'high'
+        "high"
       );
 
       await messageQueueService.sendNotification(
-        'Creating your personalized style guide...',
-        'info'
+        "Creating your personalized style guide...",
+        "info"
       );
 
-      const styleGuideContent = this.createStyleGuideContent(aesthetic, products);
-      
-      // Route Foxit API call through Kong Gateway
-      const response = await apiGateway.routeRequest('/foxit/documents/generate', {
-        method: 'POST',
-        data: {
-          template: 'style-guide-template',
-          content: styleGuideContent,
-          format: 'pdf',
-          options: {
-            page_size: 'A4',
-            orientation: 'portrait',
-            include_images: true,
-            brand_colors: aesthetic.colors,
-            style_theme: aesthetic.style.toLowerCase().replace(/\s+/g, '-')
-          }
-        },
-        headers: {
-          'Authorization': `Bearer ${this.foxitApiKey}`,
-          'Content-Type': 'application/json',
-          'X-Service': 'foxit-document-generation',
-          'X-User-ID': userId || 'anonymous'
-        }
-      });
+      const styleGuideContent = this.createStyleGuideContent(
+        aesthetic,
+        products
+      );
 
-      const pdfUrl = response.document_url || await this.simulatePdfGeneration(styleGuideContent);
-      
+      // Route Foxit API call through Kong Gateway
+      const response = await apiGateway.routeRequest(
+        "/foxit/documents/generate",
+        {
+          method: "POST",
+          data: {
+            template: "style-guide-template",
+            content: styleGuideContent,
+            format: "pdf",
+            options: {
+              page_size: "A4",
+              orientation: "portrait",
+              include_images: true,
+              brand_colors: aesthetic.colors,
+              style_theme: aesthetic.style.toLowerCase().replace(/\s+/g, "-"),
+            },
+          },
+          headers: {
+            Authorization: `Bearer ${this.foxitApiKey}`,
+            "Content-Type": "application/json",
+            "X-Service": "foxit-document-generation",
+            "X-User-ID": userId || "anonymous",
+          },
+        }
+      );
+
+      const pdfUrl =
+        response.document_url ||
+        (await this.simulatePdfGeneration(styleGuideContent));
+
       // Optimize the generated PDF
       const optimizedPdfUrl = await this.optimizePdf(pdfUrl);
 
       await messageQueueService.sendNotification(
         `Your ${aesthetic.style} style guide is ready for download!`,
-        'success'
+        "success"
       );
-      
+
       return optimizedPdfUrl;
     } catch (error) {
-      console.error('Document generation error:', error);
-      
+      console.error("Document generation error:", error);
+
       await messageQueueService.sendNotification(
-        'Style guide generation failed, creating simplified version',
-        'warning'
+        "Style guide generation failed, creating simplified version",
+        "warning"
       );
-      
+
       // Fallback to simple text generation
       const fallbackContent = this.createStyleGuideContent(aesthetic, products);
       return await this.simulatePdfGeneration(fallbackContent);
@@ -80,19 +89,19 @@ export class DocumentGenerationService {
   }
 
   async generateStyleGuideAsync(
-    aesthetic: AestheticAnalysis, 
+    aesthetic: AestheticAnalysis,
     products: Product[],
     userId?: string
   ): Promise<string> {
     // Queue document generation for background processing
     const taskId = await messageQueueService.addTask(
       `async-document-generation:${aesthetic.style}`,
-      'normal'
+      "normal"
     );
 
     // Process document generation in background
     this.processAsyncDocumentGeneration(taskId, aesthetic, products, userId);
-    
+
     return taskId;
   }
 
@@ -104,14 +113,14 @@ export class DocumentGenerationService {
   ): Promise<void> {
     try {
       await messageQueueService.sendNotification(
-        'Starting style guide generation...',
-        'info'
+        "Starting style guide generation...",
+        "info"
       );
 
       // Generate multiple document formats in parallel
       const [pdfUrl, htmlPreview] = await Promise.all([
         this.generatePdfDocument(aesthetic, products, userId),
-        this.generateHtmlPreview(aesthetic, products)
+        this.generateHtmlPreview(aesthetic, products),
       ]);
 
       // Optimize documents
@@ -119,20 +128,19 @@ export class DocumentGenerationService {
 
       await messageQueueService.sendNotification(
         `Your complete ${aesthetic.style} style guide package is ready!`,
-        'success'
+        "success"
       );
 
       // Store results (in real app, save to database with taskId)
       console.log(`Async document generation ${taskId} completed`, {
         pdf: optimizedPdfUrl,
-        html: htmlPreview
+        html: htmlPreview,
       });
-
     } catch (error) {
-      console.error('Async document generation error:', error);
+      console.error("Async document generation error:", error);
       await messageQueueService.sendNotification(
-        'Document generation encountered an issue',
-        'error'
+        "Document generation encountered an issue",
+        "error"
       );
     }
   }
@@ -143,38 +151,44 @@ export class DocumentGenerationService {
     userId?: string
   ): Promise<string> {
     const content = this.createStyleGuideContent(aesthetic, products);
-    
+
     try {
-      const response = await apiGateway.routeRequest('/foxit/documents/generate', {
-        method: 'POST',
-        data: {
-          template: 'premium-style-guide',
-          content,
-          format: 'pdf',
-          options: {
-            page_size: 'A4',
-            orientation: 'portrait',
-            include_images: true,
-            brand_colors: aesthetic.colors,
-            style_theme: aesthetic.style.toLowerCase().replace(/\s+/g, '-'),
-            user_id: userId
-          }
-        },
-        headers: {
-          'Authorization': `Bearer ${this.foxitApiKey}`,
-          'Content-Type': 'application/json',
-          'X-Service': 'foxit-pdf-generation'
+      const response = await apiGateway.routeRequest(
+        "/foxit/documents/generate",
+        {
+          method: "POST",
+          data: {
+            template: "premium-style-guide",
+            content,
+            format: "pdf",
+            options: {
+              page_size: "A4",
+              orientation: "portrait",
+              include_images: true,
+              brand_colors: aesthetic.colors,
+              style_theme: aesthetic.style.toLowerCase().replace(/\s+/g, "-"),
+              user_id: userId,
+            },
+          },
+          headers: {
+            Authorization: `Bearer ${this.foxitApiKey}`,
+            "Content-Type": "application/json",
+            "X-Service": "foxit-pdf-generation",
+          },
         }
-      });
+      );
 
       return response.document_url;
     } catch (error) {
-      console.error('PDF generation through Kong failed:', error);
+      console.error("PDF generation through Kong failed:", error);
       return await this.simulatePdfGeneration(content);
     }
   }
 
-  private async generateHtmlPreview(aesthetic: AestheticAnalysis, products: Product[]): Promise<string> {
+  private async generateHtmlPreview(
+    aesthetic: AestheticAnalysis,
+    products: Product[]
+  ): Promise<string> {
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -196,18 +210,27 @@ export class DocumentGenerationService {
         </div>
         
         <div class="color-palette">
-          ${aesthetic.colors.map(color => `<div class="color-swatch" style="background-color: ${color}"></div>`).join('')}
+          ${aesthetic.colors
+            .map(
+              (color) =>
+                `<div class="color-swatch" style="background-color: ${color}"></div>`
+            )
+            .join("")}
         </div>
         
         <div class="product-grid">
-          ${products.map(product => `
+          ${products
+            .map(
+              (product) => `
             <div class="product-card">
               <img src="${product.image}" alt="${product.title}" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
               <h3>${product.title}</h3>
               <p>${product.price}</p>
               <p>★ ${product.rating}</p>
             </div>
-          `).join('')}
+          `
+            )
+            .join("")}
         </div>
       </body>
       </html>
@@ -216,7 +239,10 @@ export class DocumentGenerationService {
     return htmlContent;
   }
 
-  private createStyleGuideContent(aesthetic: AestheticAnalysis, products: Product[]): string {
+  private createStyleGuideContent(
+    aesthetic: AestheticAnalysis,
+    products: Product[]
+  ): string {
     return `
       # ${aesthetic.style} Style Guide
       *Curated by Fesoni AI*
@@ -224,33 +250,53 @@ export class DocumentGenerationService {
       ## Your Aesthetic Profile
       **Style Identity:** ${aesthetic.style}
       **Mood & Vibe:** ${aesthetic.mood}
-      **Signature Colors:** ${aesthetic.colors.join(' • ')}
-      **Key Elements:** ${aesthetic.keywords.join(' • ')}
+      **Signature Colors:** ${aesthetic.colors.join(" • ")}
+      **Key Elements:** ${aesthetic.keywords.join(" • ")}
       **Confidence Score:** ${Math.round((aesthetic.confidence || 0.8) * 100)}%
       
       ## Curated Product Collection
-      ${products.map((product, index) => `
+      ${products
+        .map(
+          (product, index) => `
       ### ${index + 1}. ${product.title}
       **Price:** ${product.price} | **Rating:** ★${product.rating}
       
-      *Why it fits your aesthetic:* This piece embodies your ${aesthetic.style} vision with its ${aesthetic.mood} energy. The design elements align perfectly with your preference for ${aesthetic.colors.slice(0, 2).join(' and ')} tones.
+      *Why it fits your aesthetic:* This piece embodies your ${
+        aesthetic.style
+      } vision with its ${
+            aesthetic.mood
+          } energy. The design elements align perfectly with your preference for ${aesthetic.colors
+            .slice(0, 2)
+            .join(" and ")} tones.
       
       ---
-      `).join('\n')}
+      `
+        )
+        .join("\n")}
       
       ## Styling Philosophy
-      Your ${aesthetic.style} aesthetic thrives on ${aesthetic.mood} elements. Focus on:
+      Your ${aesthetic.style} aesthetic thrives on ${
+      aesthetic.mood
+    } elements. Focus on:
       
-      **Color Harmony:** Stick to your core palette of ${aesthetic.colors.join(', ')} for a cohesive look.
+      **Color Harmony:** Stick to your core palette of ${aesthetic.colors.join(
+        ", "
+      )} for a cohesive look.
       
-      **Texture Balance:** Mix ${aesthetic.keywords.slice(0, 3).join(', ')} textures to create visual interest.
+      **Texture Balance:** Mix ${aesthetic.keywords
+        .slice(0, 3)
+        .join(", ")} textures to create visual interest.
       
-      **Mood Consistency:** Every piece should enhance the ${aesthetic.mood} atmosphere you're creating.
+      **Mood Consistency:** Every piece should enhance the ${
+        aesthetic.mood
+      } atmosphere you're creating.
       
       ## Shopping Tips
       - Look for pieces that combine 2-3 of your key colors
       - Prioritize quality over quantity to maintain your aesthetic integrity
-      - Mix vintage and modern pieces to create depth in your ${aesthetic.style} space
+      - Mix vintage and modern pieces to create depth in your ${
+        aesthetic.style
+      } space
       
       ---
       *Generated on ${new Date().toLocaleDateString()} by Fesoni AI*
@@ -260,8 +306,8 @@ export class DocumentGenerationService {
 
   private async simulatePdfGeneration(content: string): Promise<string> {
     // Simulate API processing time with realistic delays
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
     // Create a more realistic mock PDF URL
     const encodedContent = btoa(encodeURIComponent(content));
     return `data:application/pdf;base64,${encodedContent}`;
@@ -270,43 +316,43 @@ export class DocumentGenerationService {
   async optimizePdf(pdfUrl: string): Promise<string> {
     try {
       // Route PDF optimization through Kong
-      const response = await apiGateway.routeRequest('/foxit/pdf/optimize', {
-        method: 'POST',
+      const response = await apiGateway.routeRequest("/foxit/pdf/optimize", {
+        method: "POST",
         data: {
           source_url: pdfUrl,
-          optimization_level: 'high',
+          optimization_level: "high",
           compress_images: true,
-          remove_metadata: false // Keep metadata for tracking
+          remove_metadata: false, // Keep metadata for tracking
         },
         headers: {
-          'Authorization': `Bearer ${this.foxitApiKey}`,
-          'Content-Type': 'application/json',
-          'X-Service': 'foxit-pdf-optimization'
-        }
+          Authorization: `Bearer ${this.foxitApiKey}`,
+          "Content-Type": "application/json",
+          "X-Service": "foxit-pdf-optimization",
+        },
       });
 
       await messageQueueService.sendNotification(
-        'PDF optimized for faster download and sharing',
-        'info'
+        "PDF optimized for faster download and sharing",
+        "info"
       );
 
       return response.optimized_url || pdfUrl;
     } catch (error) {
-      console.error('PDF optimization error:', error);
+      console.error("PDF optimization error:", error);
       await messageQueueService.sendNotification(
-        'PDF optimization skipped, using original version',
-        'warning'
+        "PDF optimization skipped, using original version",
+        "warning"
       );
       return pdfUrl;
     }
   }
 
   downloadStyleGuide(content: string, filename: string): void {
-    const blob = new Blob([content], { type: 'text/plain' });
+    const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const link = document.createElement("a");
     link.href = url;
-    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.txt`;
+    link.download = `${filename}_${new Date().toISOString().split("T")[0]}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -315,7 +361,7 @@ export class DocumentGenerationService {
     // Send download notification
     messageQueueService.sendNotification(
       `Style guide "${filename}" downloaded successfully`,
-      'success'
+      "success"
     );
   }
 
@@ -325,30 +371,36 @@ export class DocumentGenerationService {
     products: Product[]
   ): Promise<string[]> {
     const taskIds = await Promise.all(
-      aestheticVariations.map(aesthetic =>
-        messageQueueService.addTask(
-          `multi-guide:${aesthetic.style}`,
-          'normal'
-        )
+      aestheticVariations.map((aesthetic) =>
+        messageQueueService.addTask(`multi-guide:${aesthetic.style}`, "normal")
       )
     );
 
     // Process all style guides asynchronously
-    const generationPromises = aestheticVariations.map(async (aesthetic, index) => {
-      try {
-        return await this.generateStyleGuide(aesthetic, products);
-      } catch (error) {
-        console.error(`Failed to generate guide for ${aesthetic.style}:`, error);
-        return null;
+    const generationPromises = aestheticVariations.map(
+      async (aesthetic, index) => {
+        try {
+          return await this.generateStyleGuide(aesthetic, products);
+        } catch (error) {
+          console.error(
+            `Failed to generate guide for ${aesthetic.style}:`,
+            error
+          );
+          return null;
+        }
       }
-    });
+    );
 
     const results = await Promise.all(generationPromises);
-    const successfulResults = results.filter(result => result !== null) as string[];
+    const successfulResults = results.filter(
+      (result) => result !== null
+    ) as string[];
 
     await messageQueueService.sendNotification(
       `Generated ${successfulResults.length} of ${aestheticVariations.length} style guides`,
-      successfulResults.length === aestheticVariations.length ? 'success' : 'warning'
+      successfulResults.length === aestheticVariations.length
+        ? "success"
+        : "warning"
     );
 
     return successfulResults;
