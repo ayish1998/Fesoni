@@ -1,47 +1,47 @@
 // src/types/index.ts
 
-Export interface Product {
-  Id: string;
-  Title: string;
-  Price: string;
-  Image: string;
-  Rating: number;
+export interface Product {
+  id: string;
+  title: string;
+  price: string;
+  image: string;
+  rating: number;
   url: string;
   description?: string;
   category?: string;
   aestheticMatch?: number; // Confidence score 0-1
 }
 
-Export interface AestheticAnalysis {
-  Style: string;
-  Colors: string[];
-  Keywords: string[];
-  Categories: string[];
-  Mood: string;
-  Confidence?: number; // AI confidence in analysis
+export interface AestheticAnalysis {
+  style: string;
+  colors: string[];
+  keywords: string[];
+  categories: string[];
+  mood: string;
+  confidence?: number; // AI confidence in analysis
 }
 
-Export interface ApiMetrics {
-  Requests: number;
-  Errors: number;
+export interface ApiMetrics {
+  requests: number;
+  errors: number;
   avgResponseTime: number;
   rateLimitRemaining?: number;
   lastRequestTime?: Date;
 }
 
-Export interface QueueStatus {
-  Pending: number;
-  Processing: number;
-  Completed: number;
-  Failed?: number;
+export interface QueueStatus {
+  pending: number;
+  processing: number;
+  completed: number;
+  failed?: number;
   totalProcessed?: number;
 }
 
-Export interface QueueTask {
-  Id: string;
-  Task: string;
-  Status: ‘pending’ | ‘processing’ | ‘completed’ | ‘failed’;
-  Priority: ‘low’ | ‘normal’ | ‘high’;
+export interface QueueTask {
+  id: string;
+  task: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  priority: 'low' | 'normal' | 'high';
   createdAt: Date;
   completedAt?: Date;
   attempts: number;
@@ -49,17 +49,17 @@ Export interface QueueTask {
   metadata?: Record<string, any>;
 }
 
-Export interface NotificationPayload {
-  Message: string;
-  Type: ‘info’ | ‘success’ | ‘warning’ | ‘error’;
-  Timestamp: number;
-  Source: string;
+export interface NotificationPayload {
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  timestamp: number;
+  source: string;
   userId?: string;
   actionUrl?: string;
 }
 
-Export interface KongServiceConfig {
-  Name: string;
+export interface KongServiceConfig {
+  name: string;
   url: string;
   path?: string;
   retries?: number;
@@ -68,60 +68,75 @@ Export interface KongServiceConfig {
   write_timeout?: number;
 }
 
-Export interface LavinMQConfig {
+export interface LavinMQConfig {
   url: string;
   username: string;
   password: string;
   vhost: string;
   exchanges: {
     name: string;
-    type: ‘direct’ | ‘fanout’ | ‘topic’ | ‘headers’;
+    type: 'direct' | 'fanout' | 'topic' | 'headers';
     durable: boolean;
   }[];
-  Queues: {
-    Name: string;
-    Durable: boolean;
-    Exclusive: boolean;
-    Auto_delete: boolean;
+  queues: {
+    name: string;
+    durable: boolean;
+    exclusive: boolean;
+    auto_delete: boolean;
   }[];
 }
 
-Export interface FoxitDocumentRequest {
-  Template: string;
-  Content: string;
-  Format: ‘pdf’ | ‘docx’ | ‘html’;
-  Options: {
-    Page_size: ‘A4’ | ‘Letter’ | ‘A3’;
-    Orientation: ‘portrait’ | ‘landscape’;
-    Include_images: boolean;
-    Brand_colors: string[];
-    Style_theme: string;
-    Watermark?: string;
+export interface FoxitDocumentRequest {
+  template: string;
+  content: string;
+  format: 'pdf' | 'docx' | 'html';
+  options: {
+    page_size: 'A4' | 'Letter' | 'A3';
+    orientation: 'portrait' | 'landscape';
+    include_images: boolean;
+    brand_colors: string[];
+    style_theme: string;
+    watermark?: string;
   };
 }
 
-Export interface ApiGatewayResponse<T = any> {
-  Data: T;
-  Status: number;
-  Headers: Record<string, string>;
+export interface ApiGatewayResponse<T = any> {
+  data: T;
+  status: number;
+  headers: Record<string, string>;
   requestId: string;
   service: string;
   processingTime: number;
 }
 
-Export interface RateLimitInfo {
-  Service: string;
-  Remaining: number;
-  Limit: number;
+export interface RateLimitInfo {
+  service: string;
+  remaining: number;
+  limit: number;
   resetTime: Date;
   windowSize: number;
 }
 
-Export interface HealthCheckResult {
-  Service: string;
-  Healthy: boolean;
-  Latency: number;
+export interface HealthCheckResult {
+  service: string;
+  healthy: boolean;
+  latency: number;
   lastCheck: Date;
   details?: Record<string, any>;
 }
 
+export interface ChatMessage {
+  id: string;
+  type: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+  products?: Product[];
+  styleGuide?: string;
+}
+
+export interface VoiceRecognitionState {
+  isListening: boolean;
+  transcript: string;
+  confidence: number;
+  error: string | null;
+}
