@@ -1,4 +1,5 @@
 // src/services/openai.ts
+import axios from 'axios';
 import { AestheticAnalysis } from '../types';
 import { apiGateway } from './apiGateway';
 import { messageQueueService } from './messageQueue';
@@ -14,23 +15,23 @@ export class OpenAIService {
 
   async analyzeAesthetic(userInput: string): Promise<AestheticAnalysis> {
     try {
-      // Route OpenAI requests through Kong API Gateway
-      const response = await apiGateway.routeRequest('/openai/chat', {
-        method: 'POST',
-        data: {
+      // Direct OpenAI API call with proper error handling
+      const response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
           model: 'gpt-4',
           messages: [
             {
               role: 'system',
-              content: `You are an expert aesthetic analyst for Fesoni, an AI shopping assistant. Parse user descriptions of style preferences and extract specific elements. Return a JSON object with:
+              content: `You are an expert aesthetic analyst for Fesoni, an AI shopping assistant. Parse user descriptions of style preferences and extract specific elements. Return ONLY a valid JSON object with:
               - style: main aesthetic category (e.g., "Dark Academia", "Cottagecore", "Minimalist")
               - colors: array of 3-5 color preferences (e.g., ["forest green", "cream", "brass"])
               - keywords: 5-8 specific style descriptors for product search
-              - categories: 3-5 Amazon product categories to search (e.g., ["home decor", "books", "clothing"])
+              - categories: 3-5 Amazon product categories to search (e.g., ["home-kitchen", "books", "clothing"])
               - mood: overall emotional tone in 2-3 words
               - confidence: number between 0-1 indicating analysis confidence
               
-              Always return valid JSON with all fields populated.`
+              Return ONLY the JSON object, no additional text or formatting.`
             },
             {
               role: 'user',
@@ -40,15 +41,30 @@ export class OpenAIService {
           temperature: 0.7,
           max_tokens: 500
         },
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'X-Service': 'openai-aesthetic-analysis'
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
         }
-      });
+      );
 
-      const content = response.choices[0].message.content;
-      const analysis = JSON.parse(content);
+      const content = response.data.choices[0].message.content;
+      let analysis: AestheticAnalysis;
+      
+      try {
+        analysis = JSON.parse(content);
+      } catch (parseError) {
+        console.warn('Failed to parse OpenAI response, using fallback');
+        analysis = this.getFallbackAnalysis(userInput);
+      }
+
+      // Validate the analysis structure
+      if (!analysis.style || !analysis.colors || !analysis.keywords) {
+        console.warn('Invalid analysis structure, using fallback');
+        analysis = this.getFallbackAnalysis(userInput);
+      }
 
       // Send success notification through LavinMQ
       await messageQueueService.sendNotification(
@@ -106,10 +122,9 @@ export class OpenAIService {
 
   async generateProductDescription(product: any, aesthetic: AestheticAnalysis): Promise<string> {
     try {
-      // Route through Kong with specific service identification
-      const response = await apiGateway.routeRequest('/openai/chat', {
-        method: 'POST',
-        data: {
+      const response = await axios.post(
+        'https://api.openai.com/v1/chat/completions',
+        {
           model: 'gpt-4',
           messages: [
             {
@@ -129,14 +144,16 @@ export class OpenAIService {
           temperature: 0.8,
           max_tokens: 200
         },
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
-          'X-Service': 'openai-product-description'
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
         }
-      });
+      );
 
-      return response.choices[0].message.content;
+      return response.data.choices[0].message.content;
     } catch (error) {
       console.error('OpenAI description generation error:', error);
       return `This ${product.title} perfectly complements your ${aesthetic.style} aesthetic with its ${aesthetic.colors[0]} tones and ${aesthetic.mood} vibe.`;
@@ -233,18 +250,17 @@ export class OpenAIService {
     };
   }
 
-  // Health check for OpenAI service through Kong
+  // Health check for OpenAI service
   async checkServiceHealth(): Promise<boolean> {
     try {
-      await apiGateway.routeRequest('/openai/models', {
-        method: 'GET',
+      const response = await axios.get('https://api.openai.com/v1/models', {
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'X-Service': 'openai-health-check'
-        }
+          'Authorization': `Bearer ${this.apiKey}`
+        },
+        timeout: 10000
       });
 
-      return true;
+      return response.status === 200;
     } catch (error) {
       console.error('OpenAI service health check failed:', error);
       return false;

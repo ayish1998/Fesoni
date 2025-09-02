@@ -1,4 +1,5 @@
 // src/services/documentGeneration.ts
+import axios from 'axios';
 import { Product, AestheticAnalysis } from "../types";
 import { apiGateway } from "./apiGateway";
 import { messageQueueService } from "./messageQueue";
@@ -35,12 +36,13 @@ export class DocumentGenerationService {
         products
       );
 
-      // Route Foxit API call through Kong Gateway
-      const response = await apiGateway.routeRequest(
-        "/foxit/documents/generate",
-        {
-          method: "POST",
-          data: {
+      // Try Foxit API for document generation
+      let pdfUrl: string;
+      
+      try {
+        const response = await axios.post(
+          `${this.baseUrl}/documents/generate`,
+          {
             template: "style-guide-template",
             content: styleGuideContent,
             format: "pdf",
@@ -52,20 +54,22 @@ export class DocumentGenerationService {
               style_theme: aesthetic.style.toLowerCase().replace(/\s+/g, "-"),
             },
           },
-          headers: {
-            Authorization: `Bearer ${this.foxitApiKey}`,
-            "Content-Type": "application/json",
-            "X-Service": "foxit-document-generation",
-            "X-User-ID": userId || "anonymous",
-          },
-        }
-      );
+          {
+            headers: {
+              Authorization: `Bearer ${this.foxitApiKey}`,
+              "Content-Type": "application/json",
+            },
+            timeout: 30000
+          }
+        );
 
-      const pdfUrl =
-        response.document_url ||
-        (await this.simulatePdfGeneration(styleGuideContent));
+        pdfUrl = response.data.document_url;
+      } catch (foxitError) {
+        console.warn('Foxit API unavailable, using fallback generation');
+        pdfUrl = await this.simulatePdfGeneration(styleGuideContent);
+      }
 
-      // Optimize the generated PDF
+      // Optimize the generated PDF if possible
       const optimizedPdfUrl = await this.optimizePdf(pdfUrl);
 
       await messageQueueService.sendNotification(
@@ -153,34 +157,33 @@ export class DocumentGenerationService {
     const content = this.createStyleGuideContent(aesthetic, products);
 
     try {
-      const response = await apiGateway.routeRequest(
-        "/foxit/documents/generate",
+      const response = await axios.post(
+        `${this.baseUrl}/documents/generate`,
         {
-          method: "POST",
-          data: {
-            template: "premium-style-guide",
-            content,
-            format: "pdf",
-            options: {
-              page_size: "A4",
-              orientation: "portrait",
-              include_images: true,
-              brand_colors: aesthetic.colors,
-              style_theme: aesthetic.style.toLowerCase().replace(/\s+/g, "-"),
-              user_id: userId,
-            },
+          template: "premium-style-guide",
+          content,
+          format: "pdf",
+          options: {
+            page_size: "A4",
+            orientation: "portrait",
+            include_images: true,
+            brand_colors: aesthetic.colors,
+            style_theme: aesthetic.style.toLowerCase().replace(/\s+/g, "-"),
+            user_id: userId,
           },
+        },
+        {
           headers: {
             Authorization: `Bearer ${this.foxitApiKey}`,
             "Content-Type": "application/json",
-            "X-Service": "foxit-pdf-generation",
           },
+          timeout: 30000
         }
       );
 
-      return response.document_url;
+      return response.data.document_url;
     } catch (error) {
-      console.error("PDF generation through Kong failed:", error);
+      console.error("PDF generation failed:", error);
       return await this.simulatePdfGeneration(content);
     }
   }
@@ -315,28 +318,29 @@ export class DocumentGenerationService {
 
   async optimizePdf(pdfUrl: string): Promise<string> {
     try {
-      // Route PDF optimization through Kong
-      const response = await apiGateway.routeRequest("/foxit/pdf/optimize", {
-        method: "POST",
-        data: {
+      const response = await axios.post(
+        `${this.baseUrl}/pdf/optimize`,
+        {
           source_url: pdfUrl,
           optimization_level: "high",
           compress_images: true,
           remove_metadata: false, // Keep metadata for tracking
         },
-        headers: {
-          Authorization: `Bearer ${this.foxitApiKey}`,
-          "Content-Type": "application/json",
-          "X-Service": "foxit-pdf-optimization",
-        },
-      });
+        {
+          headers: {
+            Authorization: `Bearer ${this.foxitApiKey}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 30000
+        }
+      );
 
       await messageQueueService.sendNotification(
         "PDF optimized for faster download and sharing",
         "info"
       );
 
-      return response.optimized_url || pdfUrl;
+      return response.data.optimized_url || pdfUrl;
     } catch (error) {
       console.error("PDF optimization error:", error);
       await messageQueueService.sendNotification(

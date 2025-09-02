@@ -119,16 +119,23 @@ export class OrchestrationService {
       // Step 1: Analyze aesthetic (high priority)
       const analysis = await openaiService.analyzeAesthetic(userInput);
 
-      // Step 2: Parallel processing of multiple tasks
+      // Step 2: Enhanced search with cultural context
+      const culturalContext = {
+        aestheticKeywords: analysis.keywords,
+        stylePreferences: [analysis.style],
+        moodDescriptors: analysis.mood.split(' '),
+        categories: analysis.categories
+      };
+
       const [
         basicProducts,
         enhancedSearchTaskId,
         styleGuideTaskId
       ] = await Promise.all([
-        // Immediate basic product search
-        amazonService.searchProducts(analysis.keywords, analysis.categories),
+        // Cultural context search
+        amazonService.searchWithCulturalContext(culturalContext),
         
-        // Enhanced async search with more categories
+        // Enhanced async search with expanded keywords
         amazonService.searchProductsAsync([
           ...analysis.keywords,
           ...this.generateExpandedKeywords(analysis)

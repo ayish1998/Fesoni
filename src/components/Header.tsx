@@ -1,9 +1,12 @@
 import React, { useState } from "react";
-import { Sparkles, Settings, X } from "lucide-react";
+import { Sparkles, Settings, X, TestTube, CheckCircle, XCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { integrationTestService } from "../services/integrationTest";
 
 export const Header: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTestRunning, setIsTestRunning] = useState(false);
+  const [testResults, setTestResults] = useState<any>(null);
 
   return (
     <>
@@ -80,6 +83,51 @@ export const Header: React.FC = () => {
               </h2>
 
               <div className="space-y-4">
+                {/* API Integration Test */}
+                <div className="border border-gray-700 rounded-lg p-4">
+                  <h3 className="text-white font-medium mb-3 flex items-center gap-2">
+                    <TestTube className="w-4 h-4" />
+                    API Integration Test
+                  </h3>
+                  
+                  <button
+                    onClick={async () => {
+                      setIsTestRunning(true);
+                      try {
+                        const results = await integrationTestService.runFullIntegrationTest();
+                        setTestResults(results);
+                      } catch (error) {
+                        setTestResults({ success: false, errors: [error] });
+                      } finally {
+                        setIsTestRunning(false);
+                      }
+                    }}
+                    disabled={isTestRunning}
+                    className="w-full p-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-gray-600 text-white text-sm transition-colors"
+                  >
+                    {isTestRunning ? 'Running Tests...' : 'Test All APIs'}
+                  </button>
+
+                  {testResults && (
+                    <div className="mt-3 space-y-2">
+                      <div className={`flex items-center gap-2 text-sm ${testResults.success ? 'text-green-400' : 'text-red-400'}`}>
+                        {testResults.success ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                        {testResults.success ? 'All tests passed!' : `${testResults.errors?.length || 0} errors found`}
+                      </div>
+                      
+                      {testResults.results && (
+                        <div className="text-xs text-gray-400 space-y-1">
+                          <div>OpenAI: {testResults.results.openai?.success ? '✅' : '❌'}</div>
+                          <div>Amazon: {testResults.results.amazon?.success ? '✅' : '❌'}</div>
+                          <div>Foxit: {testResults.results.foxit?.success ? '✅' : '❌'}</div>
+                          <div>LavinMQ: {testResults.results.lavinmq?.success ? '✅' : '❌'}</div>
+                          <div>Kong: {testResults.results.kong?.success ? '✅' : '❌'}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="text-gray-300 text-sm">Theme</label>
                   <select className="w-full mt-1 p-2 rounded-lg bg-gray-800 border border-gray-700 text-white">
